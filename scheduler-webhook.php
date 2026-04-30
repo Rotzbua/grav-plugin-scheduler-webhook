@@ -54,7 +54,7 @@ class SchedulerWebhookPlugin extends Plugin
         $route = $uri->path();
         
         // Check if this is a scheduler route
-        if (!str_starts_with($route, '/scheduler/')) {
+        if (!str_starts_with((string) $route, '/scheduler/')) {
             return;
         }
         
@@ -138,7 +138,7 @@ class SchedulerWebhookPlugin extends Plugin
                             'message' => $job->isSuccessful() ? 'Job executed successfully' : 'Job execution failed',
                             'job_id' => $jobId,
                             'forced' => true,
-                            'output' => substr($job->getOutput(), 0, 1000)
+                            'output' => substr((string) $job->getOutput(), 0, 1000)
                         ];
                     } else {
                         $result = ['success' => false, 'message' => 'Job not found: ' . $jobId];
@@ -282,7 +282,7 @@ class SchedulerWebhookPlugin extends Plugin
         $headers = getallheaders();
         $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? null;
         
-        if ($authHeader && preg_match('/Bearer\s+(.+)$/i', $authHeader, $matches)) {
+        if ($authHeader && preg_match('/Bearer\s+(.+)$/i', (string) $authHeader, $matches)) {
             return $matches[1];
         }
         
