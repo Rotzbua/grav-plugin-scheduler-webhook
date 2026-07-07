@@ -58,15 +58,10 @@ class SchedulerWebhookPlugin extends Plugin
             return;
         }
         
-        // Get scheduler config
-        $config = $this->grav['config']->get('scheduler.modern', []);
-        
-        // Check if modern scheduler is enabled
-        if (!($config['enabled'] ?? false)) {
-            $this->sendJsonResponse(['error' => 'Modern scheduler is not enabled'], 404);
-            return;
-        }
-        
+        // Modern scheduler features are part of Grav core (2.0+) and always
+        // available, so there is no separate toggle to check here. Each endpoint
+        // gates on its own setting (webhook enabled, health enabled) below.
+
         // Route to appropriate handler
         switch ($route) {
             case '/scheduler/webhook':
@@ -121,10 +116,8 @@ class SchedulerWebhookPlugin extends Plugin
         $jobId = $_GET['job'] ?? null;
         
         try {
-            // Process webhook trigger
-            // Check if scheduler has modern features
-            $modernConfig = $this->grav['config']->get('scheduler.modern', []);
-            if (($modernConfig['enabled'] ?? false) && method_exists($scheduler, 'processWebhookTrigger')) {
+            // Process webhook trigger via core's modern scheduler when available
+            if (method_exists($scheduler, 'processWebhookTrigger')) {
                 $result = $scheduler->processWebhookTrigger($providedToken, $jobId);
             } else {
                 // Fallback for standard scheduler behavior
@@ -190,9 +183,8 @@ class SchedulerWebhookPlugin extends Plugin
         }
         
         try {
-            // Check if scheduler has modern features
-            $modernConfig = $this->grav['config']->get('scheduler.modern', []);
-            if (($modernConfig['enabled'] ?? false) && method_exists($scheduler, 'getHealthStatus')) {
+            // Use core's modern scheduler health status when available
+            if (method_exists($scheduler, 'getHealthStatus')) {
                 // Use enhanced scheduler's health status
                 $health = $scheduler->getHealthStatus();
             } else {
