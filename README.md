@@ -82,7 +82,7 @@ cors: false  # Set to true if you need cross-origin requests
 The token can be sent three ways, checked in this order:
 
 1. **`X-Webhook-Token` header (recommended)** — `X-Webhook-Token: your-secure-token-here`
-2. **`Authorization` header** — `Authorization: Bearer your-secure-token-here`
+2. **`Authorization` header** — `Authorization: Bearer your-secure-token-here` *(server-dependent — many Apache + PHP-FPM/FastCGI hosts strip this header before it reaches PHP; see the note below)*
 3. **`token` query parameter** — `?token=your-secure-token-here`
 
 > **The header is `X-Webhook-Token`** — not `X-API-Token`, which belongs to the separate Grav API plugin. Using the wrong header name is a common cause of a `401 Invalid authorization token`.
