@@ -1,3 +1,9 @@
+# v1.1.1
+## 07/06/2026
+
+1. [](#bugfix)
+   * Removed a redundant check that blocked webhook and health endpoints unless a `scheduler.modern.enabled` setting was on, a toggle that no longer exists in Grav 2.
+
 # v1.1.0
 ## 05/06/2026
 

@@ -27,7 +27,6 @@ bin/gpm install scheduler-webhook
 ## Requirements
 
 - Grav v1.7.0 or higher
-- Modern Scheduler enabled in Grav configuration
 - PHP 7.3.6 or higher
 
 ## Configuration
