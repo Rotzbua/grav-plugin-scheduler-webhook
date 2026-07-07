@@ -31,14 +31,14 @@ bin/gpm install scheduler-webhook
 
 ## Configuration
 
-### 1. Enable Modern Scheduler
+### 1. Enable the Webhook Trigger
 
-First, enable the Modern Scheduler in your Grav configuration:
+The scheduler's modern features are part of Grav core, so there is no separate "modern scheduler" toggle to turn on. You just need to enable the webhook trigger and set a token.
 
 **Admin Panel:**
 1. Navigate to Configuration → Scheduler
 2. Click on "Modern Features" tab
-3. Toggle "Enable Modern Scheduler" to ON
+3. Enable the webhook trigger and set a token
 4. Save configuration
 
 **Manual Configuration:**
@@ -47,8 +47,6 @@ Edit `user/config/scheduler.yaml`:
 
 ```yaml
 modern:
-  enabled: true
-  
   webhook:
     enabled: true
     token: 'your-secure-token-here'  # Generate with: openssl rand -hex 32
@@ -79,13 +77,21 @@ cors: false  # Set to true if you need cross-origin requests
 
 **URL:** `/scheduler/webhook`  
 **Method:** POST  
-**Authentication:** Bearer token (optional but recommended)
+**Authentication:** token (optional but recommended)
+
+The token can be sent three ways, checked in this order:
+
+1. **`X-Webhook-Token` header (recommended)** — `X-Webhook-Token: your-secure-token-here`
+2. **`Authorization` header** — `Authorization: Bearer your-secure-token-here`
+3. **`token` query parameter** — `?token=your-secure-token-here`
+
+> **Why `X-Webhook-Token` is recommended:** many Apache + PHP-FPM/FastCGI setups strip the `Authorization` header before it reaches PHP, which makes Bearer tokens fail with a 401. Custom headers like `X-Webhook-Token` are never stripped, so they work everywhere without server changes. If you prefer Bearer, see [Authentication Failures](#authentication-failures) for the `.htaccess` rule that forwards the header.
 
 #### Trigger All Due Jobs
 
 ```bash
 curl -X POST https://your-site.com/scheduler/webhook \
-  -H "Authorization: Bearer your-secure-token-here"
+  -H "X-Webhook-Token: your-secure-token-here"
 ```
 
 Response:
@@ -104,7 +110,7 @@ When you specify a job ID, the webhook will **force-run** that job immediately, 
 
 ```bash
 curl -X POST https://your-site.com/scheduler/webhook?job=backup \
-  -H "Authorization: Bearer your-secure-token-here"
+  -H "X-Webhook-Token: your-secure-token-here"
 ```
 
 Response:
@@ -172,7 +178,7 @@ jobs:
       - name: Trigger Scheduler
         run: |
           curl -X POST ${{ secrets.SITE_URL }}/scheduler/webhook \
-            -H "Authorization: Bearer ${{ secrets.SCHEDULER_TOKEN }}" \
+            -H "X-Webhook-Token: ${{ secrets.SCHEDULER_TOKEN }}" \
             -f  # Fail on HTTP errors
             
       - name: Check Health
@@ -191,7 +197,7 @@ trigger-scheduler:
   script:
     - |
       curl -X POST ${SITE_URL}/scheduler/webhook \
-        -H "Authorization: Bearer ${SCHEDULER_TOKEN}" \
+        -H "X-Webhook-Token: ${SCHEDULER_TOKEN}" \
         --fail
   only:
     - schedules
@@ -210,7 +216,7 @@ def lambda_handler(event, context):
         'POST',
         'https://your-site.com/scheduler/webhook',
         headers={
-            'Authorization': f'Bearer {SCHEDULER_TOKEN}'
+            'X-Webhook-Token': SCHEDULER_TOKEN
         }
     )
     
@@ -241,7 +247,7 @@ spec:
             - -c
             - |
               curl -X POST https://your-site.com/scheduler/webhook \
-                -H "Authorization: Bearer ${SCHEDULER_TOKEN}" \
+                -H "X-Webhook-Token: ${SCHEDULER_TOKEN}" \
                 --fail
           restartPolicy: OnFailure
 ```
@@ -310,9 +316,16 @@ http {
 
 ### Authentication Failures
 
-- Verify token matches exactly (no extra spaces)
-- Check token is properly configured in `scheduler.yaml`
-- Ensure Authorization header format: `Bearer YOUR_TOKEN`
+If you get `401 Invalid authorization token`:
+
+- Verify the token matches exactly (no extra spaces)
+- Check the token is properly configured in `scheduler.yaml`
+- **If you are using `Authorization: Bearer` and it always 401s, your server is most likely stripping the `Authorization` header** (common on Apache with PHP-FPM/FastCGI). Either switch to the `X-Webhook-Token` header, which is never stripped, or forward the header to PHP by adding this to your Grav `.htaccess`, just after `RewriteEngine On`:
+
+  ```apache
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  ```
 
 ### Health Check Shows Critical
 
@@ -346,7 +359,7 @@ ngrok http 8080
 
 # Use the ngrok URL for testing
 curl -X POST https://abc123.ngrok.io/scheduler/webhook \
-  -H "Authorization: Bearer test-token"
+  -H "X-Webhook-Token: test-token"
 ```
 
 ### Debug Mode
