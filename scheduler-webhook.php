@@ -270,22 +270,68 @@ class SchedulerWebhookPlugin extends Plugin
      */
     protected function getAuthToken(): ?string
     {
-        // Check Authorization header
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? null;
-        
+        // Normalise request headers to a lowercase-keyed map so lookups are
+        // case-insensitive regardless of the SAPI in use.
+        $headers = [];
+        foreach ($this->getRequestHeaders() as $key => $value) {
+            $headers[strtolower($key)] = $value;
+        }
+
+        // Prefer the custom X-Webhook-Token header. Unlike Authorization, custom
+        // headers are not stripped by Apache/PHP-FPM (FastCGI), so this works on
+        // setups where "Authorization: Bearer" never reaches PHP.
+        if (!empty($headers['x-webhook-token'])) {
+            return trim((string) $headers['x-webhook-token']);
+        }
+
+        // Bearer token via the Authorization header. Many FastCGI/PHP-FPM servers
+        // drop Authorization unless the vhost or .htaccess forwards it, so also
+        // check the forwarded $_SERVER copies some setups expose instead.
+        $authHeader = $headers['authorization']
+            ?? $_SERVER['HTTP_AUTHORIZATION']
+            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+            ?? null;
+
         if ($authHeader && preg_match('/Bearer\s+(.+)$/i', (string) $authHeader, $matches)) {
-            return $matches[1];
+            return trim($matches[1]);
         }
-        
-        // Check X-Webhook-Token header
-        $webhookToken = $headers['X-Webhook-Token'] ?? $headers['x-webhook-token'] ?? null;
-        if ($webhookToken) {
-            return $webhookToken;
+
+        // Query parameter (least secure, but convenient for testing or cron URLs).
+        return isset($_GET['token']) ? (string) $_GET['token'] : null;
+    }
+
+    /**
+     * Collect the incoming request headers, working around SAPIs where
+     * getallheaders() is unavailable or returns nothing.
+     *
+     * @return array<string, string>
+     */
+    protected function getRequestHeaders(): array
+    {
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders();
+            if (!empty($headers)) {
+                return $headers;
+            }
         }
-        
-        // Check query parameter (less secure, but convenient for testing)
-        return $_GET['token'] ?? null;
+
+        if (function_exists('apache_request_headers')) {
+            $headers = apache_request_headers();
+            if (!empty($headers)) {
+                return $headers;
+            }
+        }
+
+        // Fallback: reconstruct headers from the $_SERVER HTTP_* entries.
+        $headers = [];
+        foreach ($_SERVER as $key => $value) {
+            if (strpos($key, 'HTTP_') === 0) {
+                $name = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($key, 5)))));
+                $headers[$name] = $value;
+            }
+        }
+
+        return $headers;
     }
     
     /**

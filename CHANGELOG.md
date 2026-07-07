@@ -1,3 +1,9 @@
+# v1.1.2
+## 07/06/2026
+
+1. [](#bugfix)
+   * Fixed webhook token authentication returning a 401 on servers that strip the `Authorization` header, by recommending and reliably supporting the `X-Webhook-Token` header instead.
+
 # v1.1.1
 ## 07/06/2026
 
