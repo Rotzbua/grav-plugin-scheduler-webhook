@@ -96,15 +96,24 @@ class SchedulerWebhookPlugin extends Plugin
             return;
         }
         
-        // Get and validate token
+        // Get and validate token. Fail closed: an enabled webhook with no
+        // configured token must not run jobs for anonymous callers. The previous
+        // check short-circuited when the configured token was null, so an
+        // unconfigured token accepted every request. Require a token to be set,
+        // then compare with a timing-safe check. (GHSA-xwv3-2mv2-w33x / CVE-2026-57852)
         $configuredToken = $config['webhook']['token'] ?? null;
         $providedToken = $this->getAuthToken();
-        
-        if ($configuredToken && $providedToken !== $configuredToken) {
+
+        if (!is_string($configuredToken) || $configuredToken === '') {
+            $this->sendJsonResponse(['error' => 'Webhook token is not configured'], 403);
+            return;
+        }
+
+        if (!is_string($providedToken) || !hash_equals($configuredToken, $providedToken)) {
             $this->sendJsonResponse(['error' => 'Invalid authorization token'], 401);
             return;
         }
-        
+
         // Get scheduler instance
         $scheduler = $this->getScheduler();
         if (!$scheduler) {

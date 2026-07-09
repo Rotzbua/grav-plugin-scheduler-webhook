@@ -82,8 +82,10 @@ cors: false  # Set to true if you need cross-origin requests
 The token can be sent three ways, checked in this order:
 
 1. **`X-Webhook-Token` header (recommended)** — `X-Webhook-Token: your-secure-token-here`
-2. **`Authorization` header** — `Authorization: Bearer your-secure-token-here`
+2. **`Authorization` header** — `Authorization: Bearer your-secure-token-here` *(server-dependent — many Apache + PHP-FPM/FastCGI hosts strip this header before it reaches PHP; see the note below)*
 3. **`token` query parameter** — `?token=your-secure-token-here`
+
+> **The header is `X-Webhook-Token`** — not `X-API-Token`, which belongs to the separate Grav API plugin. Using the wrong header name is a common cause of a `401 Invalid authorization token`.
 
 > **Why `X-Webhook-Token` is recommended:** many Apache + PHP-FPM/FastCGI setups strip the `Authorization` header before it reaches PHP, which makes Bearer tokens fail with a 401. Custom headers like `X-Webhook-Token` are never stripped, so they work everywhere without server changes. If you prefer Bearer, see [Authentication Failures](#authentication-failures) for the `.htaccess` rule that forwards the header.
 
@@ -320,6 +322,7 @@ If you get `401 Invalid authorization token`:
 
 - Verify the token matches exactly (no extra spaces)
 - Check the token is properly configured in `scheduler.yaml`
+- **Confirm the header name is `X-Webhook-Token`, not `X-API-Token`** — the latter belongs to the Grav API plugin and this endpoint ignores it
 - **If you are using `Authorization: Bearer` and it always 401s, your server is most likely stripping the `Authorization` header** (common on Apache with PHP-FPM/FastCGI). Either switch to the `X-Webhook-Token` header, which is never stripped, or forward the header to PHP by adding this to your Grav `.htaccess`, just after `RewriteEngine On`:
 
   ```apache
