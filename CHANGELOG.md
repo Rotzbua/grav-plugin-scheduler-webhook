@@ -1,3 +1,9 @@
+# v1.1.3
+## 07/09/2026
+
+1. [](#bugfix)
+    * [security] A scheduler webhook that is enabled without a token set no longer runs jobs for anonymous callers; the endpoint now refuses every request until a token is configured, and compares tokens in constant time ([GHSA-xwv3-2mv2-w33x](https://github.com/getgrav/grav/security/advisories/GHSA-xwv3-2mv2-w33x)).
+
 # v1.1.2
 ## 07/06/2026
 
